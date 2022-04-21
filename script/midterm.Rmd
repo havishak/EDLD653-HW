@@ -1,0 +1,40 @@
+---
+title: "Take Home Midterm"
+author: 
+    - Ksenia Gordeeva
+    - Rebecca Gordon
+    - Havi Khurana
+    - Amy Warnock 
+    
+date: "4/21/2022"
+output: 
+    html_document:
+        toc: TRUE
+        toc_float: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      cache = TRUE,
+                      warning = FALSE,
+                      error = FALSE,
+                      message = FALSE)
+```
+
+## Part A: Data
+
+### Question 1
+
+### Question 2
+
+## Part B: Achievement Disparities
+
+### Question 1
+
+### Question 2
+
+### Question 3
+
+#### Extra Credit
+
+### Question 4
