@@ -78,7 +78,27 @@ data <- data_raw %>%
 Sum the *n* across grades and school for each district within each academic year, student group, and level. Calculate the number of schools (unique schools listed) for each district. Also move your data to a wider format where the student groups become new columns, filled by the district *n*. Remove districts that did not report numbers for one or both student groups (i.e., drop missing data from the new columns). Your data frame should look like the below.
 
 ```{r a2}
+data2 <- data %>%
+  group_by(district) %>% 
+  mutate(numb_schools = length(unique(school))) %>% 
+	count(academic_year, 
+	      district, 
+	      student_group, 
+	      level, 
+	      numb_schools, 
+	      wt = n) %>%
+	pivot_wider(names_from = "student_group",
+		          values_from = "n") %>%
+	janitor::clean_names() %>%
+	drop_na(hispanic_latino, white) %>%
+	ungroup() %>% 
+  select(academic_year, 
+         district, 
+         numb_schools, 
+         level, 
+         everything())
 
+data2
 ```
 
 ## Part B: Achievement Disparities
