@@ -110,6 +110,18 @@ Estimate the average achievement differences in terms of an effect size for ever
 Note, on my computer these took about 40 seconds per analysis. It will likely take a bit longer for you, but shouldn’t take too long. You may get a warning. Just go ahead and ignore that for now.
 
 ```{r b1}
+diff1 <- data2 %>% 
+  group_by(district, academic_year) %>%
+  nest() %>% 
+  mutate(v = map(data, ~estimate_v(.x, "white", "hispanic_latino"))) %>% 
+  unnest(v)
+         
+diff2 <- data2 %>% 
+  ungroup() %>% 
+  nest_by(district, academic_year) %>%  
+  summarize(v = list(estimate_v(data, "white", "hispanic_latino"))) %>% 
+  unnest(v)
+
 
 ```
 
@@ -118,6 +130,16 @@ Note, on my computer these took about 40 seconds per analysis. It will likely ta
 Reproduce the plot to confirm that the estimates are equivalent across methods.
 
 ```{r b2}
+diff1 %>%  
+  rename(v1 = v) %>% 
+  left_join(diff2) %>% 
+  rename(v2 = v) %>% 
+  ggplot(aes(v2, v1)) +
+  geom_point(color = "gray70") +
+  geom_line(color = "cornflowerblue") +
+  xlab("nest_by") + 
+  ylab("group_by") +
+  theme_minimal()
 
 ```
 
