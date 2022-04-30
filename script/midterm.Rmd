@@ -28,6 +28,7 @@ library(glue)
 library(janitor)
 #remotes::install_github("datalorax/gapr")
 library(gapr)
+library(patchwork)
 ```
 
 ## Part A: Data
@@ -115,14 +116,12 @@ diff1 <- data2 %>%
   nest() %>% 
   mutate(v = map(data, ~estimate_v(.x, "white", "hispanic_latino"))) %>% 
   unnest(v)
-         
+
 diff2 <- data2 %>% 
   ungroup() %>% 
   nest_by(district, academic_year) %>%  
   summarize(v = list(estimate_v(data, "white", "hispanic_latino"))) %>% 
   unnest(v)
-
-
 ```
 
 ### Question 2
@@ -139,11 +138,10 @@ diff1 %>%
   geom_line(color = "cornflowerblue") +
   scale_y_continuous(
         breaks = c(-1.0, 0.0, 1.0)
-    )+
+    ) +
   xlab("V(`nest_by %>% summarize()`)") + 
   ylab("V(`group_by %>% nest() %>% mutate() %>% map()`)") +
   theme_minimal()
-
 ```
 
 ### Question 3
@@ -158,7 +156,8 @@ Hint: You need to select unique *districts.* You may want to try something like 
 
 #visual inspection of districts name suggests that most end with SD (short for School District) followed by a number. We want to get rid of everything after SD, and replace it with School District
 
-diff1$district_name <- gsub(x = diff1$district, pattern = "SD.+", "School District")
+diff1$district_name <- gsub(x = diff1$district, 
+                            pattern = "SD.+", "School District")
 
 #select 100 districts
 
@@ -173,24 +172,24 @@ dists <- unique(diff1$district_name)[1:100]
 diff1 %>% 
     filter(district_name == "Bandon School District") %>%
     mutate(
-        color = ifelse(v>=0, TRUE, FALSE)
+        color = ifelse(v >= 0, TRUE, FALSE)
     ) %>% 
     ggplot(aes(x = academic_year, 
                y = v, 
                group = district_name)) +
-    geom_point(aes(color = color), 
-               size = 2,
-               show.legend = FALSE)+
-    geom_line(color = "gray70")+
-    geom_errorbar(aes(ymin = v - 1.96*v_se, 
-                      ymax = v + 1.96*v_se),
+    geom_hline(aes(yintercept = 0), 
+               color = "red") +
+    geom_line(color = "gray70") +
+    geom_errorbar(aes(ymin = v - 1.96 * v_se, 
+                      ymax = v + 1.96 * v_se),
                       width = 0.2,
                       color = "gray50"
-    )+
-    geom_hline(aes(yintercept=0), 
-               color = "red")+
+    ) +
+    geom_point(aes(color = color), 
+               size = 2,
+               show.legend = FALSE) +
     scale_color_manual(
-        values = c("magenta", "cornflowerblue"))+
+        values = c("magenta", "cornflowerblue")) +
     labs(
         x = "School year",
         y = "Average achievement difference (SD units)",
@@ -198,8 +197,8 @@ diff1 %>%
         subtitle = "Negative values indicate <span style = 'color: #FF00FF'>**White**</span> students have higher average achievement. <br>
         Positive values indicate <span style = 'color: #6495ED'>**Hispanic/Latino**</span> students have higher average achievement.",
         caption = "Note: District includes 3 schools."
-    )+
-    theme_minimal()+
+    ) +
+    theme_minimal() +
     theme(
         panel.grid.minor = element_blank(),
         plot.subtitle = ggtext::element_markdown()        
@@ -217,7 +216,7 @@ diff1 <- diff1 %>%
 plots1 <- diff1 %>% 
         filter(district_name %in% dists) %>% 
         mutate(
-        color = ifelse(v>=0, TRUE, FALSE)
+        color = ifelse(v >= 0, TRUE, FALSE)
         ) %>%  
         group_by(district_name, numb_schools) %>% 
         nest() %>% 
@@ -225,20 +224,22 @@ plots1 <- diff1 %>%
             plot = pmap(
                 list(data, district_name, numb_schools), 
                 ~{
-                     ggplot(..1, aes(x = academic_year, y = v, group = district)) +
-    geom_point(aes(color = color), 
-               size = 2,
-               show.legend = FALSE)+
-    geom_line(color = "gray70")+
-    geom_errorbar(aes(ymin = v - 1.96*v_se, 
-                      ymax = v + 1.96*v_se),
+                     ggplot(..1, aes(x = academic_year, 
+                                     y = v, 
+                                     group = district)) +
+    geom_hline(aes(yintercept=0), 
+               color = "red") +
+    geom_line(color = "gray70") +
+    geom_errorbar(aes(ymin = v - 1.96 * v_se, 
+                      ymax = v + 1.96 * v_se),
                       width = 0.2,
                   color = "gray50"
-    )+
-    geom_hline(aes(yintercept=0), 
-               color = "red")+
+    ) +
+    geom_point(aes(color = color), 
+               size = 2,
+               show.legend = FALSE) +
     scale_color_manual(
-        values = c("magenta", "cornflowerblue"))+
+        values = c("magenta", "cornflowerblue")) +
     labs(
         x = "School year",
         y = "Average achievement difference (SD units)",
@@ -246,8 +247,8 @@ plots1 <- diff1 %>%
         subtitle = "Negative values indicate <span style = 'color: #FF00FF'>**White**</span> students have higher average achievement. <br>
         Positive values indicate <span style = 'color: #6495ED'>**Hispanic/Latino**</span> students have higher average achievement.",
         caption = glue("Note: District includes {..3} schools.")
-    )+
-    theme_minimal()+
+    ) +
+    theme_minimal() +
     theme(
         panel.grid.minor = element_blank(),
         plot.subtitle = ggtext::element_markdown()        
@@ -262,7 +263,6 @@ r <- sample(1:100, 3)
 for(i in r){
     print(plots1$plot[[i]])
 }
-
 ```
 
 ```{r b3-4, fig.height=6}
@@ -272,29 +272,29 @@ for(i in r){
 plots2 <- diff1 %>% 
         filter(district_name %in% dists) %>% 
         mutate(
-        color = ifelse(v>=0, TRUE, FALSE)
+        color = ifelse(v >= 0, TRUE, FALSE)
         ) %>%  
         ungroup() %>% 
         nest_by(district_name, numb_schools) %>% 
         mutate(
             plot = list(
-                     ggplot(data, 
+                    ggplot(data, 
                             aes(x = academic_year, 
                                 y = v, 
                                 group = district)) +
+                    geom_hline(aes(yintercept = 0), 
+                               color = "red") +
+                    geom_line(color = "gray70") +
+                    geom_errorbar(aes(
+                                ymin = v - 1.96 * v_se, 
+                                ymax = v + 1.96 * v_se),
+                                width = 0.2,
+                                color = "gray50") +
                     geom_point(aes(color = color), 
                            size = 2,
-                           show.legend = FALSE)+
-                    geom_line(color = "gray70")+
-                    geom_errorbar(aes(
-                                ymin = v - 1.96*v_se, 
-                                ymax = v + 1.96*v_se),
-                                width = 0.2,
-                                color = "gray50")+
-                    geom_hline(aes(yintercept=0), 
-                               color = "red")+
+                           show.legend = FALSE) +
                     scale_color_manual(
-                        values = c("magenta", "cornflowerblue"))+
+                        values = c("magenta", "cornflowerblue")) +
                     labs(
                         x = "School year",
                         y = "Average achievement difference (SD units)",
@@ -302,8 +302,8 @@ plots2 <- diff1 %>%
                         subtitle = "Negative values indicate <span style = 'color: #FF00FF'>**White**</span> students have higher average achievement. <br>
                         Positive values indicate <span style = 'color: #6495ED'>**Hispanic/Latino**</span> students have higher average achievement.",
                         caption = glue("Note: District includes {numb_schools} schools.")
-                    )+
-                    theme_minimal()+
+                    ) +
+                    theme_minimal() +
                     theme(
                         panel.grid.minor = element_blank(),
                         plot.subtitle = ggtext::element_markdown()        
@@ -323,8 +323,7 @@ for(i in r){
 
 For up to 1 point extra credit, create a third set that “staples together” each of the preceding pairs of plots (i.e., to confirm that the plots were produced identically by both methods).
  
-```{r b-extra-credit, fig.height=8}
-library(patchwork)
+```{r b-extra-credit, fig.height=12}
 combine <- map2(plots1$plot,plots2$plot, ~.x / .y)
 
 #let's randomly see some plots
@@ -356,6 +355,5 @@ walk2(paths, plots1$plot, ggsave,
       width = 7, 
       height = 6,
       dpi = 400)
-
 ```
 
