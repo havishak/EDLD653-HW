@@ -265,7 +265,7 @@ for(i in r){
 
 ```
 
-```{r b3-4, fig.height=8}
+```{r b3-4, fig.height=6}
 #creating all plots
 #method 2
 
@@ -323,7 +323,7 @@ for(i in r){
 
 For up to 1 point extra credit, create a third set that “staples together” each of the preceding pairs of plots (i.e., to confirm that the plots were produced identically by both methods).
  
-```{r b-extra-credit, fig.height=3}
+```{r b-extra-credit, fig.height=8}
 library(patchwork)
 combine <- map2(plots1$plot,plots2$plot, ~.x / .y)
 
