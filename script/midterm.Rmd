@@ -44,7 +44,7 @@ download_file <- function(year) {
 }
 
 #trying the function out
-download_file(15)
+#download_file(15)
 
 #downloading all data and binding into a single data frame
 data_raw <- map_dfr(15:18, download_file)
@@ -98,7 +98,7 @@ data2 <- data %>%
          level, 
          everything())
 
-data2
+#data2
 ```
 
 ## Part B: Achievement Disparities
@@ -137,8 +137,11 @@ diff1 %>%
   ggplot(aes(v2, v1)) +
   geom_point(color = "gray70") +
   geom_line(color = "cornflowerblue") +
-  xlab("nest_by") + 
-  ylab("group_by") +
+  scale_y_continuous(
+        breaks = c(-1.0, 0.0, 1.0)
+    )+
+  xlab("V(`nest_by %>% summarize()`)") + 
+  ylab("V(`group_by %>% nest() %>% mutate() %>% map()`)") +
   theme_minimal()
 
 ```
@@ -149,27 +152,210 @@ Produce a similar plot for each of the first 100 school districts. Once you’ve
 
 Hint: You need to select unique *districts.* You may want to try something like the following:
 
-`dists <- unique(v$district)[1:100]`
 
-`model_list_object %>% filter(district %in% dists)`
+```{r b3-1}
+# fix district names
 
-```{r b3}
+#visual inspection of districts name suggests that most end with SD (short for School District) followed by a number. We want to get rid of everything after SD, and replace it with School District
 
+diff1$district_name <- gsub(x = diff1$district, pattern = "SD.+", "School District")
+
+#select 100 districts
+
+dists <- unique(diff1$district_name)[1:100]
+```
+
+
+```{r b3-2, fig.height=6}
+#re-creating for individual district
+#it works
+
+diff1 %>% 
+    filter(district_name == "Bandon School District") %>%
+    mutate(
+        color = ifelse(v>=0, TRUE, FALSE)
+    ) %>% 
+    ggplot(aes(x = academic_year, 
+               y = v, 
+               group = district_name)) +
+    geom_point(aes(color = color), 
+               size = 2,
+               show.legend = FALSE)+
+    geom_line(color = "gray70")+
+    geom_errorbar(aes(ymin = v - 1.96*v_se, 
+                      ymax = v + 1.96*v_se),
+                      width = 0.2,
+                      color = "gray50"
+    )+
+    geom_hline(aes(yintercept=0), 
+               color = "red")+
+    scale_color_manual(
+        values = c("magenta", "cornflowerblue"))+
+    labs(
+        x = "School year",
+        y = "Average achievement difference (SD units)",
+        title = "Achievement Gap Estimates: Bandon School District",
+        subtitle = "Negative values indicate <span style = 'color: #FF00FF'>**White**</span> students have higher average achievement. <br>
+        Positive values indicate <span style = 'color: #6495ED'>**Hispanic/Latino**</span> students have higher average achievement.",
+        caption = "Note: District includes 3 schools."
+    )+
+    theme_minimal()+
+    theme(
+        panel.grid.minor = element_blank(),
+        plot.subtitle = ggtext::element_markdown()        
+    )
+```
+
+```{r b3-3, fig.height=6}
+#getting back numb_school in the df
+diff1 <- diff1 %>% 
+    left_join(unique(data2[,c('numb_schools','district')]), by = 'district')
+
+#creating all plots
+#method 1
+
+plots1 <- diff1 %>% 
+        filter(district_name %in% dists) %>% 
+        mutate(
+        color = ifelse(v>=0, TRUE, FALSE)
+        ) %>%  
+        group_by(district_name, numb_schools) %>% 
+        nest() %>% 
+        mutate(
+            plot = pmap(
+                list(data, district_name, numb_schools), 
+                ~{
+                     ggplot(..1, aes(x = academic_year, y = v, group = district)) +
+    geom_point(aes(color = color), 
+               size = 2,
+               show.legend = FALSE)+
+    geom_line(color = "gray70")+
+    geom_errorbar(aes(ymin = v - 1.96*v_se, 
+                      ymax = v + 1.96*v_se),
+                      width = 0.2,
+                  color = "gray50"
+    )+
+    geom_hline(aes(yintercept=0), 
+               color = "red")+
+    scale_color_manual(
+        values = c("magenta", "cornflowerblue"))+
+    labs(
+        x = "School year",
+        y = "Average achievement difference (SD units)",
+        title = glue("Achievement Gap Estimates: {..2}"),
+        subtitle = "Negative values indicate <span style = 'color: #FF00FF'>**White**</span> students have higher average achievement. <br>
+        Positive values indicate <span style = 'color: #6495ED'>**Hispanic/Latino**</span> students have higher average achievement.",
+        caption = glue("Note: District includes {..3} schools.")
+    )+
+    theme_minimal()+
+    theme(
+        panel.grid.minor = element_blank(),
+        plot.subtitle = ggtext::element_markdown()        
+    )
+                }
+        )
+        )
+
+#let's randomly see some plots
+r <- sample(1:100, 3)
+
+for(i in r){
+    print(plots1$plot[[i]])
+}
+
+```
+
+```{r b3-4, fig.height=8}
+#creating all plots
+#method 2
+
+plots2 <- diff1 %>% 
+        filter(district_name %in% dists) %>% 
+        mutate(
+        color = ifelse(v>=0, TRUE, FALSE)
+        ) %>%  
+        ungroup() %>% 
+        nest_by(district_name, numb_schools) %>% 
+        mutate(
+            plot = list(
+                     ggplot(data, 
+                            aes(x = academic_year, 
+                                y = v, 
+                                group = district)) +
+                    geom_point(aes(color = color), 
+                           size = 2,
+                           show.legend = FALSE)+
+                    geom_line(color = "gray70")+
+                    geom_errorbar(aes(
+                                ymin = v - 1.96*v_se, 
+                                ymax = v + 1.96*v_se),
+                                width = 0.2,
+                                color = "gray50")+
+                    geom_hline(aes(yintercept=0), 
+                               color = "red")+
+                    scale_color_manual(
+                        values = c("magenta", "cornflowerblue"))+
+                    labs(
+                        x = "School year",
+                        y = "Average achievement difference (SD units)",
+                        title = glue("Achievement Gap Estimates: {district_name}"),
+                        subtitle = "Negative values indicate <span style = 'color: #FF00FF'>**White**</span> students have higher average achievement. <br>
+                        Positive values indicate <span style = 'color: #6495ED'>**Hispanic/Latino**</span> students have higher average achievement.",
+                        caption = glue("Note: District includes {numb_schools} schools.")
+                    )+
+                    theme_minimal()+
+                    theme(
+                        panel.grid.minor = element_blank(),
+                        plot.subtitle = ggtext::element_markdown()        
+                    )
+                )
+        )
+
+#let's randomly see some plots
+r <- sample(1:100, 3)
+
+for(i in r){
+    print(plots2$plot[[i]])
+}
 ```
 
 #### Extra Credit
 
 For up to 1 point extra credit, create a third set that “staples together” each of the preceding pairs of plots (i.e., to confirm that the plots were produced identically by both methods).
  
-```{r b-extra-credit}
+```{r b-extra-credit, fig.height=3}
+library(patchwork)
+combine <- map2(plots1$plot,plots2$plot, ~.x / .y)
 
+#let's randomly see some plots
+r <- sample(1:100, 3)
+
+for(i in r){
+    print(combine[[i]])
+}
 ```
  
 ### Question 4
 
 Save the plots into a “plots” directory. Make sure the file names are meaningful.
 
-**HINTS**
+```{r b4}
+fs::dir_create(here::here("plots"))
 
-- You don’t have to use a loop to create the file names (maybe give `{glue}` a try? Otherwise `paste` or `paste0` will work fine).
-- When working with the code, limit the number of plots you’re saving to, say, the first five to make sure it works before running it on all plots.
+files <- str_replace_all(
+  tolower(plots1$district_name),
+  " ",
+  "-"
+)
+
+paths <- here::here("plots", glue("{files}.png"))
+#paths
+
+
+walk2(paths, plots1$plot, ggsave,
+      width = 7, 
+      height = 6,
+      dpi = 400)
+
+```
+
